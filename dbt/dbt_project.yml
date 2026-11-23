@@ -1,0 +1,26 @@
+name: credit_risk
+version: "1.0.0"
+config-version: 2
+profile: credit_risk
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # "hoje" do data warehouse; mesmo valor do gerador (config/generator.yaml)
+  snapshot_date: "{{ env_var('SNAPSHOT_DATE', '2025-01-31') }}"
+
+models:
+  credit_risk:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+    ml:
+      +materialized: table
+      +schema: ml

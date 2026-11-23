@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: stg_erp__titulos
+    description: "Títulos a receber (duplicatas). Grão: 1 linha por parcela."
+    columns:
+      - name: cod_titulo
+        data_tests: [unique, not_null]
+      - name: cod_cliente
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: { to: ref('stg_erp__clientes'), field: cod_cliente }
+      - name: cod_empresa
+        data_tests:
+          - relationships:
+              arguments: { to: ref('stg_erp__empresas'), field: cod_empresa }
+      - name: vlr_nominal
+        data_tests:
+          - not_null
+          - positive_value
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments: { values: ["A", "Q"] }
+      - name: tipo_origem
+        description: "Tipo do título na emissão. Usar em modelos: `tipo_atual` é pós-evento (vazamento de informação)."
+        data_tests:
+          - accepted_values:
+              arguments: { values: ["DUP", "BOL", "CHQ"] }
+  - name: stg_erp__clientes
+    columns:
+      - name: cod_cliente
+        data_tests: [unique, not_null]
+  - name: stg_erp__empresas
+    columns:
+      - name: cod_empresa
+        data_tests: [unique, not_null]
+  - name: stg_erp__representantes
+    columns:
+      - name: cod_representante
+        data_tests: [unique, not_null]
+  - name: stg_erp__produtos
+    columns:
+      - name: cod_produto
+        data_tests: [unique, not_null]
+  - name: stg_erp__notas_fiscais
+    columns:
+      - name: cod_nota
+        data_tests: [unique, not_null]
+  - name: stg_erp__notas_itens
+    columns:
+      - name: cod_produto
+        data_tests:
+          - relationships:
+              arguments: { to: ref('stg_erp__produtos'), field: cod_produto }

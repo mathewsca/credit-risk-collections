@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    name: Lint + testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[api,dev]"
+      - run: ruff check . && ruff format --check .
+      - run: pytest
+
+  data-pipeline:
+    name: Gerador -> PostgreSQL -> dbt build -> treino
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: analytics, POSTGRES_PASSWORD: analytics, POSTGRES_DB: warehouse }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U analytics" --health-interval 5s --health-retries 20
+    env:
+      WAREHOUSE_URL: postgresql+psycopg://analytics:analytics@localhost:5432/warehouse
+      PGHOST: localhost
+      PGUSER: analytics
+      PGPASSWORD: analytics
+      PGDATABASE: warehouse
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[dbt,dev]"
+      - name: Gera dados sintéticos e carrega o schema raw
+        run: |
+          python -m credit_risk.generator.generate
+          python -m credit_risk.ingest
+      - name: dbt build (modelos + testes de dados + teste anti-vazamento)
+        working-directory: dbt
+        run: dbt build --profiles-dir .
+      - name: Treino e avaliação (sem MLflow) — garante que o modelo supera o piso de qualidade
+        run: |
+          python - <<'EOF'
+          from credit_risk.ml.train import run
+          s = run(log_to_mlflow=False)
+          m = s["test"][s["selected"]]["metrics"]
+          assert m["roc_auc"] >= 0.70, m
+          print("OK", m)
+          EOF
+
+  docker:
+    name: Build das imagens
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build

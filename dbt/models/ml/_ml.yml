@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: ml_features
+    description: >
+      Tabela de features point-in-time (1 linha por título) consumida pelo treino e pelo scoring.
+      Nenhuma feature usa informação posterior à data de emissão.
+    columns:
+      - name: cod_titulo
+        data_tests: [unique, not_null]
+      - name: hist_taxa_late30
+        data_tests:
+          - not_null
+      - name: tipo_origem
+        data_tests:
+          - accepted_values:
+              arguments: { values: ["DUP", "BOL", "CHQ"] }

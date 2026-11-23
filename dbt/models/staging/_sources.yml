@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: erp
+    description: "Extração bruta do sistema transacional (sintético), carregada pela task `ingest` do Airflow no schema raw."
+    schema: raw
+    tables:
+      - name: filiais
+      - name: representantes
+      - name: clientes
+      - name: produtos
+      - name: notas
+      - name: notas_itens
+      - name: titulos
+        loaded_at_field: _loaded_at
+        freshness:
+          warn_after: { count: 2, period: day }

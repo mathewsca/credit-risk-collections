@@ -1,0 +1,8 @@
+# Tema do app (paleta "Stock market", Octet): marinho como cor principal, texto quase preto e
+# fundos claros. Cores dos gráficos e das faixas de risco ficam em app/lib.py.
+[theme]
+base = "light"
+primaryColor = "#153e70"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3eef0"
+textColor = "#061313"

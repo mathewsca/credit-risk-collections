@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: fct_titulos
+    description: "Fato de títulos a receber (grão: parcela) com regras de atraso, aging e alvo do modelo."
+    columns:
+      - name: cod_titulo
+        data_tests: [unique, not_null]
+      - name: cod_empresa
+        data_tests:
+          - relationships:
+              arguments: { to: ref('dim_empresa'), field: cod_empresa }
+      - name: cod_representante
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: { to: ref('dim_representante'), field: cod_representante }
+      - name: fk_data_vencimento
+        data_tests:
+          - relationships:
+              arguments: { to: ref('dim_data'), field: pk_data }
+      - name: faixa_aging
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Quitado", "A vencer", "01-30 dias", "31-60 dias", "61-90 dias", "91-180 dias", "180+ dias"]
+  - name: dim_empresa
+    columns:
+      - name: cod_empresa
+        data_tests: [unique, not_null]
+  - name: dim_cliente
+    columns:
+      - name: cod_cliente
+        data_tests: [unique, not_null]
+  - name: dim_representante
+    columns:
+      - name: cod_representante
+        data_tests: [unique, not_null]
+  - name: dim_data
+    columns:
+      - name: pk_data
+        data_tests: [unique, not_null]
+  - name: mart_inadimplencia_mensal
+    description: "KPIs mensais por filial: índice de inadimplência (DAX original) e taxa de atraso > 30d por safra."
+  - name: mart_aging
+    description: "Saldo em aberto por faixa de atraso."
+  - name: mart_produtos_atraso
+    description: "Produtos mais presentes em títulos vencidos."

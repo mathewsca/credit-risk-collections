@@ -1,0 +1,77 @@
+# Parâmetros do gerador sintético de contas a receber de uma distribuidora atacadista fictícia.
+# Ordens de grandeza plausíveis para o varejo/atacado brasileiro. Valores monetários com perturbação
+# aleatória de ±1–5% por nota. Nenhum registro, nome, identificador ou valor real é utilizado.
+seed: 42
+
+period:
+  start: "2023-01-01"        # primeira emissão de nota
+  end: "2024-12-31"          # última emissão de nota
+  snapshot_date: "2025-01-31" # "hoje" do data warehouse
+
+scale:
+  n_clients: 6000
+  n_branches: 30
+  n_reps: 140
+  n_products: 2500
+  # notas por cliente/mês ~ Gamma-Poisson (heterogeneidade -> cauda longa de títulos por cliente)
+  monthly_orders_mean: 0.40
+  monthly_orders_shape: 0.45
+  growth_per_month: 0.03      # carteira em expansão (~3% a.m.)
+
+invoice:
+  value_median: 1128.52        # valor da nota (R$)
+  value_sigma: 0.85           # lognormal
+  privacy_jitter: [0.01, 0.05] # cada nota recebe fator 1 ± U(1%, 5%) com sinal aleatório (anti-rastreio)
+  installments_p: {1: 0.38, 2: 0.25, 3: 0.22, 4: 0.07, 5: 0.07, 6: 0.01}
+  first_due_days: [28, 30, 35, 45]
+  items_median: 6
+  items_sigma: 0.8
+  types_p: {DUP: 0.96, BOL: 0.02, CHQ: 0.02}   # tipo do título na emissão: duplicata, boleto avulso, cheque
+  late_fee_daily: 0.0033      # juros/multa ~10% a.m.
+  late_fee_charge_prob: 0.5   # metade dos atrasos curtos tem juros perdoados na negociação
+
+clients:
+  size_p: {"Nao Cadastrado": 0.55, "01 - Micro": 0.08, "02 - Pequeno": 0.16, "03 - Médio": 0.14, "04 - Grande": 0.06, "05 - Master": 0.01}
+  uf_p: {GO: 0.50, MG: 0.24, DF: 0.05, MT: 0.05, MS: 0.04, SP: 0.03, TO: 0.03, BA: 0.02, RO: 0.015, PA: 0.015,
+         AM: 0.006, AC: 0.004}
+  distressed_share: 0.03      # fração de clientes com risco latente alto
+
+# Mecanismo causal do atraso > 30 dias. Conhecer a "verdade" permite validar o modelo.
+# Cada cliente alterna entre dois regimes mensais (cadeia de Markov):
+#   adimplente  -> "em dificuldade" com hazard h (logit abaixo, depende do perfil do cliente e da sazonalidade)
+#   em dificuldade -> permanece com probabilidade `persist` (duração média = 1 / (1 - persist) meses)
+# No regime "em dificuldade" quase todos os títulos atrasam (p_late_distress); no adimplente, o atraso
+# é raro e depende das características do título.
+risk:
+  hazard_intercept: -5.8
+  distressed: 2.8             # clientes estruturalmente frágeis entram em dificuldade com mais frequência
+  latent_sd: 0.6              # heterogeneidade não observável do cliente
+  persist: 0.8
+  p_late_distress: 0.88
+  size: {"Nao Cadastrado": 0.25, "01 - Micro": 0.35, "02 - Pequeno": 0.15, "03 - Médio": 0.0, "04 - Grande": -0.15, "05 - Master": -0.5}
+  uf_high_risk: {AM: 1.2, AC: 0.9, RO: 0.6, PA: 0.5, MG: 0.25}
+  tenure_years: -0.06         # clientes antigos entram menos em dificuldade
+  q1_seasonality: 0.6         # jan-mar: pressão de caixa pós-festas e impostos (IPVA, IPTU, material escolar)
+  # atraso pontual no regime adimplente (logit por título)
+  title_intercept: -6.4
+  invoice_sd: 0.8             # choque por nota
+  log_value: 0.35             # por unidade de log(valor/mediana)
+  installment_number: 0.15    # parcelas mais distantes são mais arriscadas
+  types: {DUP: 0.0, BOL: 1.2, CHQ: 0.6}
+  # Choque macroeconômico (usado para demonstrar drift e retreino)
+  shock: {start: "2024-10-01", intercept: 0.0, uf: {}}
+
+payment:
+  # dado que NÃO atrasou > 30d: mistura antecipado / no prazo / atraso curto
+  on_time_share: 0.62
+  early_days_mean: 6
+  short_late_max: 30
+  # dado que atrasou > 30d
+  late_31_90_share: 0.70
+  never_paid_share: 0.20      # do restante (> 90d), fração que nunca é paga
+  outsourced_after_days: 90   # vira TERC (cobrança terceirizada) após 90d sem pagamento
+
+products:
+  lines: {"Linha A": 0.14, "Linha B": 0.16, "Linha C": 0.12, "Linha D": 0.13, "Linha E": 0.12,
+          "Linha F": 0.15, "Linha G": 0.08, "Linha H": 0.10}   # linhas genéricas (sem descrição de produto)
+  zipf_a: 1.15

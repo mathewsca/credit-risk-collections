@@ -1,0 +1,38 @@
+// Medidas DAX do modelo semântico (tabela de medidas: _Medidas)
+// Fonte: schemas marts e ml do PostgreSQL. As regras de linha já vêm prontas do dbt.
+
+// ---------------- Carteira (equivalentes às medidas do relatório original)
+Valor Nominal = SUM ( fct_titulos[vlr_nominal] )
+Valor Pago = SUM ( fct_titulos[vlr_pago] )
+Valor em Atraso = SUM ( fct_titulos[vlr_atraso] )
+Qtd Títulos = COUNTROWS ( fct_titulos )
+
+Índice Inadimplência =
+    DIVIDE ( [Valor em Atraso], [Valor Nominal] )
+
+// ---------------- Taxa por safra (somente títulos com rótulo maturado)
+Taxa Atraso > 30d =
+VAR _maturados =
+    CALCULATE ( [Qtd Títulos], fct_titulos[label_disponivel] = TRUE () )
+VAR _atrasados =
+    CALCULATE (
+        [Qtd Títulos],
+        fct_titulos[label_disponivel] = TRUE (),
+        fct_titulos[is_late30] = TRUE ()
+    )
+RETURN
+    DIVIDE ( _atrasados, _maturados )
+
+// ---------------- Risco (tabela scores do modelo em produção)
+Saldo Monitorado = SUM ( scores[vlr_aberto] )
+Perda Esperada = SUM ( scores[perda_esperada] )
+PD Média Ponderada = DIVIDE ( [Perda Esperada], [Saldo Monitorado] )
+
+// % da perda esperada coberta pelos N títulos de maior prioridade (parâmetro "Capacidade")
+Cobertura da Fila =
+VAR _cap = SELECTEDVALUE ( Capacidade[Capacidade], 500 )
+RETURN
+    DIVIDE (
+        CALCULATE ( [Perda Esperada], scores[prioridade] <= _cap ),
+        CALCULATE ( [Perda Esperada], REMOVEFILTERS ( scores ) )
+    )
